@@ -13,7 +13,7 @@ import requests
 # To open images as bytes
 from io import BytesIO
 # To display images
-#from IPython.display import display
+from IPython.display import display
 # To create matrix from images
 import numpy as np
 
@@ -33,6 +33,7 @@ PUND_LUMINOSITY_MODES = {
     "RMY": [0.5, 0.419, 0.081],
     "Y": [0.299, 0.587, 0.114]
     }
+
 
 #===============================================================================
 #                                 Image Manipulation
@@ -91,7 +92,7 @@ def matrix_from_image( lines, columns, bands = BANDS, pixel_value = DEFAULT_PIXE
     Returns:
         Matriz com n=bands dimensoes de pixels
     """
-    return [ [ [ band * 0 + pixel_value for band in range( bands ) ] for line in range( lines ) ] for column in range( columns ) ]
+    return [ [ [ band * 0 + pixel_value for band in range( bands ) ] for column in range( columns ) ] for line in range( lines ) ]
 
 
 def image_from_matrix( rgb_matrix, matrix_Type = DEFAULT_MATRIX_TYPE, color_mode = MODE ):
@@ -193,10 +194,12 @@ def get_image_height ( image ):
 #===============================================================================
 #                                DIP Algorithms
 #===============================================================================
-def find_rgb_image_bounds( image_data ):
+def find_rgb_image_bounds( matrix_image_data, matrix_image_width, matrix_image_height ):
     """Econtra maior e menor valor de pixel dada uma imagem
     Args:
-        image: imagem (Pillow.Image)
+        image: matriz da image
+        matrix_image_width: largura da matriz da imagem
+        matrix_image_height: altura da matriz da imagem
     Returns: lista contendo maior e menor valor de cada canal
     """
     min_pixel_value = None
@@ -204,42 +207,42 @@ def find_rgb_image_bounds( image_data ):
     image_bounds = [[], [], []]
     
     for band in range ( BANDS ):
-        for position_x in range( image_data.width ):
-            for position_y in range( image_data.height ):
-                if min_pixel_value == None or image_data[position_y][position_x][band] < min_pixel_value:
-                    min_pixel_value = image_data[position_y][position_x][band]
-                if max_pixel_value == None or image_data[position_y][position_x][band] > max_pixel_value:
-                    max_pixel_value = image_data[position_y][position_x][band]
+        for position_x in range( matrix_image_width ):
+            for position_y in range( matrix_image_height ):
+                if min_pixel_value == None or matrix_image_data[position_x][position_y][band] < min_pixel_value:
+                    min_pixel_value = matrix_image_data[position_x][position_y][band]
+                if max_pixel_value == None or matrix_image_data[position_x][position_y][band] > max_pixel_value:
+                    max_pixel_value = matrix_image_data[position_x][position_y][band]
                         
         image_bounds[band] = [ min_pixel_value, max_pixel_value ]
         
     return image_bounds
             
 
-def normalize_rgb_image ( image ):
+def normalize_rgb_image ( matrix_image ):
     """Normaliza imagem utilzando regra de três simples
     Args:
-        image: matriz de imagem RGB
+        matrix_image: matriz de imagem RGB
     Returns: matriz de imagem RGB com valores dos pixels normalizados
     """    
-    imageBound = find_rgb_image_bounds( image )
+    image_width = get_image_width( matrix_image )
+    image_height = get_image_height( matrix_image )
+    
+    imageBound = find_rgb_image_bounds( matrix_image, image_width, image_height )
     
     fator_ajuste_r = 255 / ( imageBound[R][MAX_PIXEL_INDEX] - imageBound[R][MIN_PIXEL_INDEX] )
     fator_ajuste_g = 255 / ( imageBound[G][MAX_PIXEL_INDEX] - imageBound[G][MIN_PIXEL_INDEX] )
     fator_ajuste_b = 255 / ( imageBound[B][MAX_PIXEL_INDEX] - imageBound[B][MIN_PIXEL_INDEX] )
     
-    image_width = get_image_width( image )
-    image_height = get_image_height( image )
-    
     for position_x in range( image_width ):
         for position_y in range( image_height ):
-            image[position_y][position_x] = ( 
-                            ( fator_ajuste_r * ( image[position_y][position_x][R] - imageBound[R][0] ) ),
-                            ( fator_ajuste_g * ( image[position_y][position_x][G] - imageBound[G][0] ) ),
-                            ( fator_ajuste_b * ( image[position_y][position_x][B] - imageBound[B][0] ) )
+            matrix_image[position_x][position_y] = ( 
+                            ( fator_ajuste_r * ( matrix_image[position_x][position_y][R] - imageBound[R][0] ) ),
+                            ( fator_ajuste_g * ( matrix_image[position_x][position_y][G] - imageBound[G][0] ) ),
+                            ( fator_ajuste_b * ( matrix_image[position_x][position_y][B] - imageBound[B][0] ) )
                           )
     
-    return image
+    return matrix_image
 
 
 def add_images( images, normalize_result = False, color_mode = MODE ):
@@ -255,22 +258,22 @@ def add_images( images, normalize_result = False, color_mode = MODE ):
     new_image_width = find_min_image_width( images )
     new_image_height = find_min_image_height( images )
     
-    baseImage = matrix_from_image( new_image_height, new_image_width )
+    base_matrix_image = matrix_from_image( new_image_height, new_image_width )
     
     for image in range( len( images ) - 1 ):
         image1 = load_image_data( images[image] )
         image2 = load_image_data( images[image + 1] )
         for position_x in range( new_image_width ):
             for position_y in range( new_image_height ):
-                baseImage[position_y][position_x] = ( 
+                base_matrix_image[position_y][position_x] = ( 
                                    image1[position_x, position_y][R] + image2[position_x, position_y][R],
                                    image1[position_x, position_y][G] + image2[position_x, position_y][G],
                                    image1[position_x, position_y][B] + image2[position_x, position_y][B]
                                   )
     if( normalize_result ):
-        baseImage = normalize_rgb_image( baseImage, new_image_width, new_image_height )
+        base_matrix_image = normalize_rgb_image( base_matrix_image )
         
-    return image_from_matrix( baseImage )
+    return image_from_matrix( base_matrix_image )
 
 
 def subtract_images( images, normalize_result = False, color_mode = MODE ):
@@ -299,7 +302,7 @@ def subtract_images( images, normalize_result = False, color_mode = MODE ):
                                    image1[position_x, position_y][B] - image2[position_x, position_y][B]
                                   )
     if( normalize_result ):
-        baseImage = normalize_rgb_image( baseImage, new_image_width, new_image_height )
+        baseImage = normalize_rgb_image( baseImage )
         
     return image_from_matrix( baseImage )
 
@@ -330,7 +333,7 @@ def multiply_images( images, normalize_result = False, color_mode = MODE ):
                                    image1[position_x, position_y][B] * image2[position_x, position_y][B]
                                   )
     if( normalize_result ):
-        baseImage = normalize_rgb_image( baseImage, new_image_width, new_image_height )
+        baseImage = normalize_rgb_image( baseImage )
         
     return image_from_matrix( baseImage )
 
@@ -436,4 +439,10 @@ def generate_histogram( image ):
             result_histogram[histogram_position_y][histogram_position_x][B] = 0
             
     return image_from_matrix( result_histogram )
-    
+
+
+image1 = load_image_path('/media/zeller/VICTOR/PDI/images/para-somar-A1.jpg')
+image2 = load_image_path('/media/zeller/VICTOR/PDI/images/para-somar-A2.jpg')
+
+result_image = multiply_images([ image1, image2], False)
+result_image.show("Adicao Imagens")
