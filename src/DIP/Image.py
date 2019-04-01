@@ -25,6 +25,8 @@ MODE = 'RGB'
 DEFAULT_MATRIX_TYPE = 'uint8'
 DEFAULT_RBG_VALUE = ( 0, 0, 0 )
 DEFAULT_PIXEL_VALUE = MAX_PIXEL_VALUE = 255
+HISTOGRAM_HEIGHT = 256
+HISTOGRAM_WIDTH = 511
 MIN_PIXEL_INDEX, MAX_PIXEL_INDEX = 0, 1
 R, G, B = 0, 1, 2
 SIZE = ( 200, 300 )
@@ -139,6 +141,22 @@ def new_kernel ( lines = 3, columns = 3 ):
     return [ [ line * 0 + 1 for line in range( lines ) ] for column in range( columns ) ]
 
 
+def new_laplacian_kernel ( lines = 3, columns = 3, pound = -8 ):
+    """Cria kernel laplacianao 
+    Args:
+        lines: número de linhas do kernel, default = 3
+        columns: número de colunas do kernel, default = 3
+        pound: peso central do kernel. Default = -8
+    Returns:
+        kernel (lines x columns)
+    """
+    laplacian_kernel = [ [ line * 0 + 1 for line in range( lines ) ] for column in range( columns ) ]
+    
+    laplacian_kernel[start_kernel_height( laplacian_kernel )][start_kernel_width( laplacian_kernel )] = pound
+    
+    return laplacian_kernel
+
+
 def find_kernel_width( kernel ):
     """Descobre largura do kernel (width)
     Args:
@@ -146,7 +164,7 @@ def find_kernel_width( kernel ):
     Returns:
         largura do kernel
     """
-    return len( kernel )
+    return len( kernel[0] )
 
 
 def find_kernel_height( kernel ):
@@ -156,7 +174,7 @@ def find_kernel_height( kernel ):
     Returns:
         altura do kernel
     """
-    return len( kernel[0] )
+    return len( kernel )
 
 
 def start_kernel_width ( kernel ):
@@ -184,11 +202,13 @@ def start_kernel_height ( kernel ):
     
     return kernel_height // 2
 
+
 def get_image_width ( image ):
-    return len( image )
+    return len( image[0] )
+
 
 def get_image_height ( image ):
-    return len( image[0] )
+    return len( image )
 
 
 #===============================================================================
@@ -207,8 +227,8 @@ def find_rgb_image_bounds( matrix_image_data, matrix_image_width, matrix_image_h
     image_bounds = [[], [], []]
     
     for band in range ( BANDS ):
-        for position_x in range( matrix_image_width ):
-            for position_y in range( matrix_image_height ):
+        for position_x in range( matrix_image_height ):
+            for position_y in range( matrix_image_width ):
                 if min_pixel_value == None or matrix_image_data[position_x][position_y][band] < min_pixel_value:
                     min_pixel_value = matrix_image_data[position_x][position_y][band]
                 if max_pixel_value == None or matrix_image_data[position_x][position_y][band] > max_pixel_value:
@@ -234,8 +254,8 @@ def normalize_rgb_image ( matrix_image ):
     fator_ajuste_g = 255 / ( imageBound[G][MAX_PIXEL_INDEX] - imageBound[G][MIN_PIXEL_INDEX] )
     fator_ajuste_b = 255 / ( imageBound[B][MAX_PIXEL_INDEX] - imageBound[B][MIN_PIXEL_INDEX] )
     
-    for position_x in range( image_width ):
-        for position_y in range( image_height ):
+    for position_x in range( image_height ):
+        for position_y in range( image_width ):
             matrix_image[position_x][position_y] = ( 
                             ( fator_ajuste_r * ( matrix_image[position_x][position_y][R] - imageBound[R][0] ) ),
                             ( fator_ajuste_g * ( matrix_image[position_x][position_y][G] - imageBound[G][0] ) ),
@@ -263,12 +283,12 @@ def add_images( images, normalize_result = False, color_mode = MODE ):
     for image in range( len( images ) - 1 ):
         image1 = load_image_data( images[image] )
         image2 = load_image_data( images[image + 1] )
-        for position_x in range( new_image_width ):
-            for position_y in range( new_image_height ):
-                base_matrix_image[position_y][position_x] = ( 
-                                   image1[position_x, position_y][R] + image2[position_x, position_y][R],
-                                   image1[position_x, position_y][G] + image2[position_x, position_y][G],
-                                   image1[position_x, position_y][B] + image2[position_x, position_y][B]
+        for position_x in range( new_image_height ):
+            for position_y in range( new_image_width ):
+                base_matrix_image[position_x][position_y] = ( 
+                                   image1[position_y, position_x][R] + image2[position_y, position_x][R],
+                                   image1[position_y, position_x][G] + image2[position_y, position_x][G],
+                                   image1[position_y, position_x][B] + image2[position_y, position_x][B]
                                   )
     if( normalize_result ):
         base_matrix_image = normalize_rgb_image( base_matrix_image )
@@ -294,12 +314,12 @@ def subtract_images( images, normalize_result = False, color_mode = MODE ):
     for image in range( len( images ) - 1 ):
         image1 = load_image_data( images[image] )
         image2 = load_image_data( images[image + 1] )
-        for position_x in range( new_image_width ):
-            for position_y in range( new_image_height ):
-                baseImage[position_y][position_x] = ( 
-                                   image1[position_x, position_y][R] - image2[position_x, position_y][R],
-                                   image1[position_x, position_y][G] - image2[position_x, position_y][G],
-                                   image1[position_x, position_y][B] - image2[position_x, position_y][B]
+        for position_x in range( new_image_height ):
+            for position_y in range( new_image_width ):
+                baseImage[position_x][position_y] = ( 
+                                   image1[position_y, position_x][R] - image2[position_y, position_x][R],
+                                   image1[position_y, position_x][G] - image2[position_y, position_x][G],
+                                   image1[position_y, position_x][B] - image2[position_y, position_x][B]
                                   )
     if( normalize_result ):
         baseImage = normalize_rgb_image( baseImage )
@@ -325,12 +345,12 @@ def multiply_images( images, normalize_result = False, color_mode = MODE ):
     for image in range( len( images ) - 1 ):
         image1 = load_image_data( images[image] )
         image2 = load_image_data( images[image + 1] )
-        for position_x in range( new_image_width ):
-            for position_y in range( new_image_height ):
-                baseImage[position_y][position_x] = ( 
-                                   image1[position_x, position_y][R] * image2[position_x, position_y][R],
-                                   image1[position_x, position_y][G] * image2[position_x, position_y][G],
-                                   image1[position_x, position_y][B] * image2[position_x, position_y][B]
+        for position_x in range( new_image_height ):
+            for position_y in range( new_image_width ):
+                baseImage[position_x][position_y] = ( 
+                                   image1[position_y, position_x][R] * image2[position_y, position_x][R],
+                                   image1[position_y, position_x][G] * image2[position_y, position_x][G],
+                                   image1[position_y, position_x][B] * image2[position_y, position_x][B]
                                   )
     if( normalize_result ):
         baseImage = normalize_rgb_image( baseImage )
@@ -338,64 +358,127 @@ def multiply_images( images, normalize_result = False, color_mode = MODE ):
     return image_from_matrix( baseImage )
 
 
-def median_filter ( image, kernel = new_kernel( 3, 3 ) ):
+def half_median_filter ( image, kernel = new_kernel( 3, 3 ) ):
     
-    resultImage = matrix_from_image( image.height, image.width )
-    baseImage = load_image_data( image )
+    result_image = matrix_from_image( image.height, image.width )
+    base_image = load_image_data( image )
     
-    for image_position_x in range( image.width ):
-        for image_position_y in range( image.height ):
+    for image_position_x in range( image.height ):
+        for image_position_y in range( image.width ):
             
-            start_position_x_kernel = 0 if image_position_x - start_kernel_width( kernel ) <= 0 else image_position_x - start_kernel_width( kernel )
-            end_position_x_kernel = image_position_x if image_position_x + start_kernel_width( kernel ) >= image.width else image_position_x + ( kernel )
+            start_position_x = 0 if image_position_x - start_kernel_height( kernel ) <= 0 else image_position_x - start_kernel_height( kernel )
+            end_position_x = image_position_x if image_position_x + start_kernel_height( kernel ) >= image.height - 1 else image_position_x + start_kernel_height( kernel )
             
-            start_position_y = 0 if image_position_y - start_kernel_height( kernel ) <= 0 else image_position_y - start_kernel_height( kernel )
-            end_position_y = image_position_y if image_position_y + start_kernel_height( kernel ) >= image.height else image_position_y + start_kernel_height( kernel )
+            start_position_y = 0 if image_position_y - start_kernel_width( kernel ) <= 0 else image_position_y - start_kernel_width( kernel )
+            end_position_y = image_position_y if image_position_y + start_kernel_width( kernel ) >= image.width - 1 else image_position_y + start_kernel_width( kernel )
             
-            kernelSize = ( end_position_x_kernel + 1 - start_position_x_kernel ) * ( end_position_y + 1 - start_position_y )
+            kernelSize = ( end_position_x + 1 - start_position_x ) * ( end_position_y + 1 - start_position_y )
             
             for band in range( BANDS ):
-                for kernel_position_x in range( start_position_x_kernel, end_position_x_kernel ):
-                    kernelX = end_position_x_kernel - start_position_x_kernel
-                    for kernel_position_y in range( start_position_y, end_position_y ):
-                        kernelY = end_position_y - start_position_y
-                        resultImage[image_position_y][image_position_x][band] += baseImage[kernel_position_x, kernel_position_y][band] * kernel[kernelY][kernelX]
-                
-                resultImage[image_position_y][image_position_x][band] /= kernelSize
+                for kernel_position_x in range( start_position_x, end_position_x + 1 ):
+                    kernelX = ( end_position_x ) - kernel_position_x
+                    for kernel_position_y in range( start_position_y, end_position_y + 1 ):
+                        kernelY = ( end_position_y ) - kernel_position_y
+                        result_image[image_position_x][image_position_y][band] += base_image[start_position_y + kernelY, start_position_x + kernelX][band] * kernel[kernelY][kernelX]
+                        
+                result_image[image_position_x][image_position_y][band] /= kernelSize
             
-    return image_from_matrix( resultImage )
+    return image_from_matrix( result_image )
+
+
+def median_filter ( image, kernel = new_kernel( 3, 3 ) ):
+    
+    result_image = matrix_from_image( image.height, image.width )
+    base_image = load_image_data( image )
+    
+    start_kernel_x = start_kernel_height( kernel )
+    start_kernel_y = start_kernel_width( kernel )
+    
+    neighborhood_pixel_values = []
+    
+    for image_position_x in range( image.height ):
+        
+        start_position_x = 0 if image_position_x - start_kernel_x <= 0 else image_position_x - start_kernel_x
+        end_position_x = image_position_x if image_position_x + start_kernel_x >= image.height - 1 else image_position_x + start_kernel_x
+        
+        for image_position_y in range( image.width ):
+            
+            start_position_y = 0 if image_position_y - start_kernel_y <= 0 else image_position_y - start_kernel_y
+            end_position_y = image_position_y if image_position_y + start_kernel_y >= image.width - 1 else image_position_y + start_kernel_y
+            
+            for band in range( BANDS ):
+                neighborhood_pixel_values = []
+                for kernel_position_x in range( start_position_x, end_position_x + 1 ):
+                    kernelX = ( end_position_x ) - kernel_position_x
+                    for kernel_position_y in range( start_position_y, end_position_y + 1 ):
+                        kernelY = ( end_position_y ) - kernel_position_y
+                        neighborhood_pixel_values.append( base_image[start_position_y + kernelY, start_position_x + kernelX ][band] )
+                        
+                result_image[image_position_x][image_position_y][band] = np.median( neighborhood_pixel_values )
+            
+    return image_from_matrix( result_image )
+
+
+def laplacian_filter( image, kernel = new_laplacian_kernel( 3, 3 ) ):
+    result_image = matrix_from_image( image.height, image.width, pixel_value = 0 )
+    base_image = load_image_data( image )
+    
+    start_kernel_x = start_kernel_height( kernel )
+    start_kernel_y = start_kernel_width( kernel )
+    
+    for image_position_x in range( image.height ):
+        
+        start_position_x = 0 if image_position_x - start_kernel_x <= 0 else image_position_x - start_kernel_x
+        end_position_x = image_position_x if image_position_x + start_kernel_x >= image.height - 1 else image_position_x + start_kernel_x
+        
+        for image_position_y in range( image.width ):
+            
+            start_position_y = 0 if image_position_y - start_kernel_y <= 0 else image_position_y - start_kernel_y
+            end_position_y = image_position_y if image_position_y + start_kernel_y >= image.width - 1 else image_position_y + start_kernel_y
+            
+            for band in range( BANDS ):
+                final_pixel_value = 0
+                for kernel_position_x in range( start_position_x, end_position_x + 1 ):
+                    kernelX = ( end_position_x ) - kernel_position_x
+                    for kernel_position_y in range( start_position_y, end_position_y + 1 ):
+                        kernelY = ( end_position_y ) - kernel_position_y
+                        final_pixel_value = final_pixel_value + base_image[start_position_y + kernelY, start_position_x + kernelX][band] * kernel[kernelY][kernelX]
+                
+                result_image[image_position_x][image_position_y][band] = 0 if final_pixel_value <= 0 else final_pixel_value
+    
+    return image_from_matrix( normalize_rgb_image( result_image ) )
 
 
 def brightness_monocromatization ( image ):
     base_image = load_image_data( image )
-    base_matrix_image = image_from_matrix( image.height, image.width )
+    base_matrix_image = matrix_from_image( image.height, image.width )
     
-    for image_position_x in range( image.width ):
-        for image_position_y in range ( image.height ):
+    for image_position_x in range( image.height ):
+        for image_position_y in range ( image.width):
             chanelValues = [
-                base_image[image_position_x, image_position_y][R], 
-                base_image[image_position_x, image_position_y][G], 
-                base_image[image_position_x, image_position_y][B]
+                base_image[image_position_y, image_position_x][R],
+                base_image[image_position_y, image_position_x][G],
+                base_image[image_position_y, image_position_x][B]
             ]
             
-            base_matrix_image[image_position_y][image_position_x][R] = ( max( chanelValues ) + min( chanelValues ) ) / 2
-            base_matrix_image[image_position_y][image_position_x][G] = ( max( chanelValues ) + min( chanelValues ) ) / 2
-            base_matrix_image[image_position_y][image_position_x][B] = ( max( chanelValues ) + min( chanelValues ) ) / 2
+            base_matrix_image[image_position_x][image_position_y][R] = ( max( chanelValues ) + min( chanelValues ) ) / 2
+            base_matrix_image[image_position_x][image_position_y][G] = ( max( chanelValues ) + min( chanelValues ) ) / 2
+            base_matrix_image[image_position_x][image_position_y][B] = ( max( chanelValues ) + min( chanelValues ) ) / 2
     
     return image_from_matrix( base_matrix_image )
 
 
 def median_monocromatization( image ):
     base_image = load_image_data( image )
-    base_matrix_image = image_from_matrix( image.height, image.width )
+    base_matrix_image = matrix_from_image( image.height, image.width )
     
-    for image_position_x in range( image.width ):
-        for image_position_y in range ( image.height ):
-            chanel_values = base_image[image_position_x, image_position_y][R] + base_image[image_position_x, image_position_y][G] + base_image[image_position_x, image_position_y][B]
+    for image_position_x in range( image.height ):
+        for image_position_y in range ( image.width):
+            chanel_values = base_image[image_position_y, image_position_x][R] + base_image[image_position_y, image_position_x][G] + base_image[image_position_y, image_position_x][B]
                             
-            base_matrix_image[image_position_y][image_position_x][R] = chanel_values / 3
-            base_matrix_image[image_position_y][image_position_x][G] = chanel_values / 3
-            base_matrix_image[image_position_y][image_position_x][B] = chanel_values / 3
+            base_matrix_image[image_position_x][image_position_y][R] = chanel_values / 3
+            base_matrix_image[image_position_x][image_position_y][G] = chanel_values / 3
+            base_matrix_image[image_position_x][image_position_y][B] = chanel_values / 3
     
     return image_from_matrix( base_matrix_image )
 
@@ -403,46 +486,72 @@ def median_monocromatization( image ):
 def luminosity_monocromatization( image, luminosity_mode = "BT709" ):
     chanel_pound = PUND_LUMINOSITY_MODES.get( luminosity_mode )
     base_image = load_image_data( image )
-    base_matrix_image = image_from_matrix( image.width, image.height )
+    base_matrix_image = matrix_from_image( image.height, image.width )
     
-    for image_position_x in range( image.width ):
-        for image_position_y in range ( image.height ):
-            chanel_values = [base_image[image_position_x, image_position_y][R], base_image[image_position_x, image_position_y][G], base_image[image_position_x, image_position_y][B]]
-            base_matrix_image[image_position_y][image_position_x][R] = ( chanel_values[R] * chanel_pound[R] ) + ( chanel_values[G] * chanel_pound[G] ) + ( chanel_values[B] * chanel_pound[B] )
-            base_matrix_image[image_position_y][image_position_x][G] = ( chanel_values[R] * chanel_pound[R] ) + ( chanel_values[G] * chanel_pound[G] ) + ( chanel_values[B] * chanel_pound[B] )
-            base_matrix_image[image_position_y][image_position_x][B] = ( chanel_values[R] * chanel_pound[R] ) + ( chanel_values[G] * chanel_pound[G] ) + ( chanel_values[B] * chanel_pound[B] )
+    for image_position_x in range( image.height ):
+        for image_position_y in range ( image.width ):
+            chanel_values = [base_image[image_position_y, image_position_x][R], base_image[image_position_y, image_position_x][G], base_image[image_position_y, image_position_x][B]]
+            base_matrix_image[image_position_x][image_position_y][R] = ( chanel_values[R] * chanel_pound[R] ) + ( chanel_values[G] * chanel_pound[G] ) + ( chanel_values[B] * chanel_pound[B] )
+            base_matrix_image[image_position_x][image_position_y][G] = ( chanel_values[R] * chanel_pound[R] ) + ( chanel_values[G] * chanel_pound[G] ) + ( chanel_values[B] * chanel_pound[B] )
+            base_matrix_image[image_position_x][image_position_y][B] = ( chanel_values[R] * chanel_pound[R] ) + ( chanel_values[G] * chanel_pound[G] ) + ( chanel_values[B] * chanel_pound[B] )
     
     return image_from_matrix( base_matrix_image )
 
 
-def generate_histogram( image ):
-    grey_scale_frequency = [i * 0 for i in range( 256 )]
-    base_image = load_image_data( image )
+def generate_relative_histogram( image ):
+    grey_scale_frequency = generate_grey_scale_frequence(image)
+    max_grey_scale_frequency = get_max_grey_scale_frequency( grey_scale_frequency )
     
-    for image_position_x in range( image.width ):
-        for image_position_y in range( image.height ):
-            pixel_value = base_image[image_position_x, image_position_y][R]
-            grey_scale_frequency[pixel_value] += 1
-    
-    image_resolution = image.width * image.height
-    max_grey_scale_frequency = max( grey_scale_frequency )
+    adjustment_factor = HISTOGRAM_HEIGHT / max_grey_scale_frequency 
 
     for index in range( len( grey_scale_frequency ) ):
-        grey_scale_frequency[index] = int( ( grey_scale_frequency[index] / max_grey_scale_frequency ) * 510 )
+        grey_scale_frequency[index] = int (adjustment_factor * grey_scale_frequency[index] ) 
                
-    result_histogram = image_from_matrix( 511, 256, 200 )
+    result_histogram = matrix_from_image( HISTOGRAM_HEIGHT, HISTOGRAM_WIDTH, pixel_value = 200 )
 
-    for histogram_position_x in range( 511 ):
-        for histogram_position_y in range( 255, 255 - grey_scale_frequency[histogram_position_x // 2], -1 ):
-            result_histogram[histogram_position_y][histogram_position_x][R] = 0
-            result_histogram[histogram_position_y][histogram_position_x][G] = 0
-            result_histogram[histogram_position_y][histogram_position_x][B] = 0
+    for histogram_position_y in range( HISTOGRAM_WIDTH ):
+        for histogram_position_x in range( HISTOGRAM_HEIGHT - grey_scale_frequency[histogram_position_y // 2] -1, HISTOGRAM_HEIGHT ):
+            result_histogram[histogram_position_x][histogram_position_y][R] = 0
+            result_histogram[histogram_position_x][histogram_position_y][G] = 0
+            result_histogram[histogram_position_x][histogram_position_y][B] = 0
             
     return image_from_matrix( result_histogram )
 
 
-image1 = load_image_path('/media/zeller/VICTOR/PDI/images/para-somar-A1.jpg')
-image2 = load_image_path('/media/zeller/VICTOR/PDI/images/para-somar-A2.jpg')
+def generate_absolute_histogram(image):
+    pass
 
-result_image = multiply_images([ image1, image2], False)
-result_image.show("Adicao Imagens")
+def generate_grey_scale_frequence(image):
+    grey_scale_frequency = [i * 0 for i in range( 256 )]
+    base_image = load_image_data(image)
+    
+    for image_position_x in range( image.height ):
+        for image_position_y in range( image.width):
+            pixel_value = base_image[image_position_y, image_position_x][R]
+            grey_scale_frequency[pixel_value] += 1
+    
+    return grey_scale_frequency
+    
+def get_max_grey_scale_frequency(grey_scale_frequence):
+    return max( grey_scale_frequence )
+#===============================================================================
+#                                  TESTES
+#===============================================================================
+# image = load_image_path( '/media/zeller/VICTOR/PDI/images/salt_pepper_vih.png' )
+# image.show()
+# image = median_filter( image , new_kernel(5, 5))
+# image.show()
+# laplacian_image = laplacian_filter( image )
+# laplacian_image.show()
+
+#===============================================================================
+#                          TESTES MONOCORMATIZACAO
+#===============================================================================
+mono = load_image_path( '/media/zeller/VICTOR/PDI/images/vih.jpeg' )
+mono.show()
+#brightness_monocromatization(mono).show()
+#median_monocromatization(mono).show()
+mono = luminosity_monocromatization(mono)
+mono.show()
+generate_relative_histogram(mono).show()
+
