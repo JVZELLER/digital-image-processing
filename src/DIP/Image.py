@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 '''
 Created on 24 de mar de 2019
 
@@ -13,21 +15,27 @@ import requests
 # To open images as bytes
 from io import BytesIO
 # To display images
-from IPython.display import display
+#from IPython.display import display
 # To create matrix from images
 import numpy as np
+# To generate random int values
+from random import randint
+from _pickle import load
 
 #===============================================================================
 #                                    Constants
 #===============================================================================
 BANDS = 3
-MODE = 'RGB'
 DEFAULT_MATRIX_TYPE = 'uint8'
 DEFAULT_RBG_VALUE = ( 0, 0, 0 )
 DEFAULT_PIXEL_VALUE = MAX_PIXEL_VALUE = 255
+DEFAULT_NUMBER_OF_CLUSTERS = 3
+DEFAULT_TOLERANCE_VALUE_FOR_CLUSTER_CHANGE = 1
 HISTOGRAM_HEIGHT = 256
 HISTOGRAM_WIDTH = 511
-MIN_PIXEL_INDEX, MAX_PIXEL_INDEX = 0, 1
+CLUSTER_INDEX = 3
+MAX_PIXEL_INDEX, MIN_PIXEL_INDEX = 1, 0
+MODE = 'RGB'
 R, G, B = 0, 1, 2
 SIZE = ( 200, 300 )
 PUND_LUMINOSITY_MODES = {
@@ -83,6 +91,8 @@ def load_image_data ( image ):
     """
     return image.load()
 
+def numpy_array_from_matrix(matrix, matrix_Type = DEFAULT_MATRIX_TYPE ):
+    return np.asarray( matrix ).astype( matrix_Type )
 
 def matrix_from_image( lines, columns, bands = BANDS, pixel_value = DEFAULT_PIXEL_VALUE ):
     """Cria matriz de pixels
@@ -107,7 +117,7 @@ def image_from_matrix( rgb_matrix, matrix_Type = DEFAULT_MATRIX_TYPE, color_mode
     Returns:
         new Pillow Image
     """
-    return Image.fromarray( np.asarray( rgb_matrix ).astype( matrix_Type ), color_mode )
+    return Image.fromarray( numpy_array_from_matrix(rgb_matrix, matrix_Type), color_mode )
 
 
 def find_min_image_height ( images ):
@@ -210,6 +220,101 @@ def get_image_width ( image ):
 def get_image_height ( image ):
     return len( image )
 
+def get_random_image_position_x(image_height):
+    return randint(0, image_height)
+
+def get_random_image_position_y(image_width):
+    return randint(0, image_width)
+
+def generate_k_means_matrix (image):
+    return matrix_from_image(image.height, image.width, bands=4, pixel_value=0)
+
+def new_image_color_cluster_list(number_of_clusters, bands=BANDS):
+    return [ [ band * 0 for band in range(bands) ] for cluster in range( number_of_clusters ) ] 
+
+def generate_random_cluster_values_from_image(image, clusters):
+    base_image = load_image_data(image)
+    cluster_size = len(clusters)
+    
+    for cluster in range(cluster_size):
+        cluster_rgb_random_values = []
+        random_image_position_x = get_random_image_position_x(image.height - 1)
+        random_image_position_y = get_random_image_position_y(image.width - 1)
+        for band in range(BANDS):
+            cluster_rgb_random_values.append( base_image[random_image_position_y, random_image_position_x][band] )
+        
+        clusters[cluster] = cluster_rgb_random_values
+    
+    return clusters
+
+def generate_k_means_rgb_cluster_from_image(image, number_of_clusters = DEFAULT_NUMBER_OF_CLUSTERS):
+    clusters = new_image_color_cluster_list(number_of_clusters)
+    return generate_random_cluster_values_from_image(image, clusters)
+     
+
+def generate_rbg_cluster_structure(clusters):
+    return [ [ [ band * 0 for band in range( len( clusters[0] ) ) ], 0 ] for cluster in range(len(clusters)) ]
+
+def find_pixel_cluster(image_data, image_position_x, image_position_y, clusters):
+    image_rgb_values = [ 
+                        image_data[image_position_y, image_position_x][R],
+                        image_data[image_position_y, image_position_x][G],
+                        image_data[image_position_y, image_position_x][B]
+                       ]
+    cluster_value_based_on_image = []
+    for cluster in range(len(clusters)):
+        cluster_value_based_on_image.append(
+            ( 
+                ( ( image_rgb_values[R] - clusters[cluster][R] )**2 ) + 
+                ( ( image_rgb_values[G] - clusters[cluster][G] )**2 ) + 
+                ( ( image_rgb_values[B] - clusters[cluster][B] )**2 )
+                
+            )**(1/2) 
+        )
+    
+    return cluster_value_based_on_image.index(min(cluster_value_based_on_image))
+
+def recalculate_clusters_values(cluster_data):
+    new_clusters = []
+    for cluster_index in range(len(cluster_data)):
+        if cluster_data[cluster_index][1] > 0:
+            new_clusters.append( [ 
+                cluster_data[cluster_index][0][R] // cluster_data[cluster_index][1],
+                cluster_data[cluster_index][0][G] // cluster_data[cluster_index][1],
+                cluster_data[cluster_index][0][B] // cluster_data[cluster_index][1] 
+            ] )
+        else:
+            new_clusters.append(cluster_data[cluster_index][0])
+            
+    return new_clusters
+
+def verify_cluster_change(new_cluster_values, old_cluster_values, tolerance_value_for_cluster_change=DEFAULT_TOLERANCE_VALUE_FOR_CLUSTER_CHANGE):
+    is_change = False
+    
+    for cluster_index in range(len(new_cluster_values)):
+        for cluster_item in range(len(new_cluster_values[0] ) ):
+            is_change = True if ( 
+                abs( new_cluster_values[cluster_index][cluster_item] - old_cluster_values[cluster_index][cluster_item] ) 
+                ) <= tolerance_value_for_cluster_change else False 
+    
+    return is_change
+
+def matrix_image_from_key_means_image(k_means_matrix):
+    return numpy_array_from_matrix(k_means_matrix, DEFAULT_MATRIX_TYPE)[:, :, :3]
+
+def image_from_k_means_matrix(k_means_matrix, clusters):
+    matrix_image_height = get_image_height(k_means_matrix)
+    matrix_image_width = get_image_width(k_means_matrix)
+    
+    for cluster_index in range(len(clusters)):
+        for image_position_x in range(matrix_image_height):
+            for image_position_y in range(matrix_image_width):
+                if ( k_means_matrix[image_position_x][image_position_y][CLUSTER_INDEX] == cluster_index ):
+                    k_means_matrix[image_position_x][image_position_y][R] = clusters[cluster_index][R]
+                    k_means_matrix[image_position_x][image_position_y][G] = clusters[cluster_index][G]
+                    k_means_matrix[image_position_x][image_position_y][B] = clusters[cluster_index][B]
+                    
+    return image_from_matrix( matrix_image_from_key_means_image( k_means_matrix ) )
 
 #===============================================================================
 #                                DIP Algorithms
@@ -534,24 +639,28 @@ def generate_grey_scale_frequence(image):
     
 def get_max_grey_scale_frequency(grey_scale_frequence):
     return max( grey_scale_frequence )
-#===============================================================================
-#                                  TESTES
-#===============================================================================
-# image = load_image_path( '/media/zeller/VICTOR/PDI/images/salt_pepper_vih.png' )
-# image.show()
-# image = median_filter( image , new_kernel(5, 5))
-# image.show()
-# laplacian_image = laplacian_filter( image )
-# laplacian_image.show()
 
-#===============================================================================
-#                          TESTES MONOCORMATIZACAO
-#===============================================================================
-mono = load_image_path( '/media/zeller/VICTOR/PDI/images/vih.jpeg' )
-mono.show()
-#brightness_monocromatization(mono).show()
-#median_monocromatization(mono).show()
-mono = luminosity_monocromatization(mono)
-mono.show()
-generate_relative_histogram(mono).show()
-
+def cluster_by_k_means_method(image, number_of_clusters=DEFAULT_NUMBER_OF_CLUSTERS ):
+    base_image = load_image_data(image)
+    clusters = generate_k_means_rgb_cluster_from_image(image, number_of_clusters)
+    old_clusters_values = []
+    is_converged = False
+    k_means_matrix = generate_k_means_matrix(image) 
+    cluster_data = generate_rbg_cluster_structure(clusters)
+    
+    while is_converged == False:
+        for image_position_x in range(image.height):
+            for image_position_y in range(image.width):
+                cluster_index = find_pixel_cluster(base_image, image_position_x, image_position_y, clusters)
+                k_means_matrix[image_position_x][image_position_y][CLUSTER_INDEX] = cluster_index
+                cluster_data[cluster_index][1] += 1
+                cluster_data[cluster_index][0][R] += base_image[image_position_y, image_position_x][R]
+                cluster_data[cluster_index][0][G] += base_image[image_position_y, image_position_x][G]
+                cluster_data[cluster_index][0][B] += base_image[image_position_y, image_position_x][B]
+            
+        old_clusters_values = clusters
+        clusters = recalculate_clusters_values(cluster_data)
+        is_converged = verify_cluster_change(clusters, old_clusters_values)
+        cluster_data = generate_rbg_cluster_structure(clusters)
+        
+    return image_from_k_means_matrix(k_means_matrix, clusters)
