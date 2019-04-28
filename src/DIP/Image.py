@@ -26,18 +26,25 @@ from _pickle import load
 #                                    Constants
 #===============================================================================
 BANDS = 3
+CLUSTER_INDEX = 3
 DEFAULT_MATRIX_TYPE = 'uint8'
 DEFAULT_RBG_VALUE = ( 0, 0, 0 )
 DEFAULT_PIXEL_VALUE = MAX_PIXEL_VALUE = 255
+MIN_PIXEL_VALUE = 0
 DEFAULT_NUMBER_OF_CLUSTERS = 3
 DEFAULT_TOLERANCE_VALUE_FOR_CLUSTER_CHANGE = 1
+DEFAULT_THRESHOLD_VALUE = 128
+DEAFULT_MAX_STEPS_THRESHOLD = 10
+DEFAULT_DELTA_THRESHOLD = 2
+GREY_SCALE_MAX_VALUE = 256
 HISTOGRAM_HEIGHT = 256
 HISTOGRAM_WIDTH = 511
-CLUSTER_INDEX = 3
 MAX_PIXEL_INDEX, MIN_PIXEL_INDEX = 1, 0
 MODE = 'RGB'
 R, G, B = 0, 1, 2
 SIZE = ( 200, 300 )
+START_IMAGE_HEIGHT = 0
+START_IMAGE_WIDTH = 0
 PUND_LUMINOSITY_MODES = {
     "BT709": [0.2125, 0.7154, 0.0721],
     "RMY": [0.5, 0.419, 0.081],
@@ -602,9 +609,11 @@ def luminosity_monocromatization( image, luminosity_mode = "BT709" ):
     
     return image_from_matrix( base_matrix_image )
 
+def generate_base_grey_scale_frequency(grey_scale_value=GREY_SCALE_MAX_VALUE):
+    return [i * 0 for i in range(grey_scale_value)]
 
-def generate_relative_histogram( image ):
-    grey_scale_frequency = generate_grey_scale_frequence(image)
+def generate_histogram( image ):
+    grey_scale_frequency = generate_absolute_histogram(image)
     max_grey_scale_frequency = get_max_grey_scale_frequency( grey_scale_frequency )
     
     adjustment_factor = HISTOGRAM_HEIGHT / max_grey_scale_frequency 
@@ -624,10 +633,22 @@ def generate_relative_histogram( image ):
 
 
 def generate_absolute_histogram(image):
-    pass
+    # Should refactor histogram's methods name
+    return generate_grey_scale_frequence(image)
+
+def generate_relative_histogram(image):
+    grey_scale_frequency = generate_absolute_histogram(image)
+    image_resolution = image.width * image.height
+    
+    relative_histogram = generate_base_grey_scale_frequency()
+    
+    for grey_scale_index in range(len(grey_scale_frequency)):
+        relative_histogram[grey_scale_index] = grey_scale_frequency[grey_scale_index] / image_resolution
+        
+    return relative_histogram
 
 def generate_grey_scale_frequence(image):
-    grey_scale_frequency = [i * 0 for i in range( 256 )]
+    grey_scale_frequency = generate_base_grey_scale_frequency()
     base_image = load_image_data(image)
     
     for image_position_x in range( image.height ):
@@ -639,6 +660,52 @@ def generate_grey_scale_frequence(image):
     
 def get_max_grey_scale_frequency(grey_scale_frequence):
     return max( grey_scale_frequence )
+
+def find_trheshold_value(image, max_steps_threshold, delta_threshold):
+    relative_histogram = generate_relative_histogram(image)
+    threshold_value = DEFAULT_THRESHOLD_VALUE
+    
+    while max_steps_threshold > 0:
+        max_steps_threshold -= 1
+        left_half_median_brightness = 0
+        right_half_median_brightness = 0
+        
+        for relative_histogram_index in range(1, len(relative_histogram)):
+            if relative_histogram_index < threshold_value:
+                left_half_median_brightness += relative_histogram_index * relative_histogram[relative_histogram_index]
+            else:
+                right_half_median_brightness += relative_histogram_index * relative_histogram[relative_histogram_index]
+        
+        new_threshold_value = ( left_half_median_brightness + right_half_median_brightness ) // 2
+        
+        if abs(new_threshold_value - threshold_value) < delta_threshold:
+            break
+        
+        threshold_value = new_threshold_value
+    return threshold_value
+        
+
+def threshold_image(image, threshold_value=DEFAULT_THRESHOLD_VALUE):
+    base_image = load_image_data(image)
+    base_matrix_image = matrix_from_image( image.height, image.width )
+    
+    for image_position_x in range(image.height):
+        for image_position_y in range(image.width):
+            if base_image[image_position_y, image_position_x][R] < threshold_value:
+                base_matrix_image[image_position_x][image_position_y][R] = MIN_PIXEL_VALUE
+                base_matrix_image[image_position_x][image_position_y][G] = MIN_PIXEL_VALUE
+                base_matrix_image[image_position_x][image_position_y][B] = MIN_PIXEL_VALUE
+            else:
+                base_matrix_image[image_position_x][image_position_y][R] = MAX_PIXEL_VALUE
+                base_matrix_image[image_position_x][image_position_y][G] = MAX_PIXEL_VALUE
+                base_matrix_image[image_position_x][image_position_y][B] = MAX_PIXEL_VALUE
+                
+    return image_from_matrix(base_matrix_image)
+
+def global_threshold_image(image, max_steps_threshold=DEAFULT_MAX_STEPS_THRESHOLD, delta_threshold=DEFAULT_DELTA_THRESHOLD):
+    threshold_value = find_trheshold_value(image, max_steps_threshold, delta_threshold)
+    print(f'Threshold Value: {threshold_value}')
+    return threshold_image(image, threshold_value)
 
 def cluster_by_k_means_method(image, number_of_clusters=DEFAULT_NUMBER_OF_CLUSTERS ):
     base_image = load_image_data(image)
@@ -664,3 +731,19 @@ def cluster_by_k_means_method(image, number_of_clusters=DEFAULT_NUMBER_OF_CLUSTE
         cluster_data = generate_rbg_cluster_structure(clusters)
         
     return image_from_k_means_matrix(k_means_matrix, clusters)
+
+#===============================================================================
+#                                 Tests
+#===============================================================================
+
+## Should create a main package just for tests
+
+image = load_image_path('/home/zeller/Pictures/bird.jpg')
+imageTwo = load_image_url("https://www.sketchbook.com/blog/wp-content/uploads/2017/08/how-to-draw-flowers-tulip-53.png")
+#image.show()
+image = luminosity_monocromatization(image)
+generate_histogram(image).show("title")
+threshold_image(image).show("title")
+global_threshold_image(image).show()
+
+
