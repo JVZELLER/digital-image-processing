@@ -36,6 +36,8 @@ DEFAULT_TOLERANCE_VALUE_FOR_CLUSTER_CHANGE = 1
 DEFAULT_THRESHOLD_VALUE = 128
 DEAFULT_MAX_STEPS_THRESHOLD = 10
 DEFAULT_DELTA_THRESHOLD = 2
+DEFAULT_HORIZONTAL_REGIONS = 3
+DEFAULT_VERTICAL_REGIONS = 3
 GREY_SCALE_MAX_VALUE = 256
 HISTOGRAM_HEIGHT = 256
 HISTOGRAM_WIDTH = 511
@@ -612,8 +614,8 @@ def luminosity_monocromatization( image, luminosity_mode = "BT709" ):
 def generate_base_grey_scale_frequency(grey_scale_value=GREY_SCALE_MAX_VALUE):
     return [i * 0 for i in range(grey_scale_value)]
 
-def generate_histogram( image ):
-    grey_scale_frequency = generate_absolute_histogram(image)
+def generate_histogram( image, start_image_position_x, start_image_position_y, end_image_position_x, end_image_position_y ):
+    grey_scale_frequency = generate_absolute_histogram(image, start_image_position_x, start_image_position_y, end_image_position_x, end_image_position_y)
     max_grey_scale_frequency = get_max_grey_scale_frequency( grey_scale_frequency )
     
     adjustment_factor = HISTOGRAM_HEIGHT / max_grey_scale_frequency 
@@ -632,13 +634,13 @@ def generate_histogram( image ):
     return image_from_matrix( result_histogram )
 
 
-def generate_absolute_histogram(image):
+def generate_absolute_histogram(image, start_image_position_x, start_image_position_y, end_image_position_x, end_image_position_y):
     # Should refactor histogram's methods name
-    return generate_grey_scale_frequence(image)
+    return generate_grey_scale_frequence(image, start_image_position_x, start_image_position_y, end_image_position_x, end_image_position_y)
 
-def generate_relative_histogram(image):
-    grey_scale_frequency = generate_absolute_histogram(image)
-    image_resolution = image.width * image.height
+def generate_relative_histogram(image, start_image_position_x, start_image_position_y, end_image_position_x, end_image_position_y):
+    grey_scale_frequency = generate_absolute_histogram(image, start_image_position_x, start_image_position_y, end_image_position_x, end_image_position_y)
+    image_resolution = ( end_image_position_x - start_image_position_x )  * ( end_image_position_y - start_image_position_y )
     
     relative_histogram = generate_base_grey_scale_frequency()
     
@@ -647,12 +649,12 @@ def generate_relative_histogram(image):
         
     return relative_histogram
 
-def generate_grey_scale_frequence(image):
+def generate_grey_scale_frequence(image, start_image_position_x, start_image_position_y, end_image_position_x, end_image_position_y):
     grey_scale_frequency = generate_base_grey_scale_frequency()
     base_image = load_image_data(image)
     
-    for image_position_x in range( image.height ):
-        for image_position_y in range( image.width):
+    for image_position_x in range( start_image_position_x, end_image_position_x ):
+        for image_position_y in range( start_image_position_y, end_image_position_y ):
             pixel_value = base_image[image_position_y, image_position_x][R]
             grey_scale_frequency[pixel_value] += 1
     
@@ -661,8 +663,8 @@ def generate_grey_scale_frequence(image):
 def get_max_grey_scale_frequency(grey_scale_frequence):
     return max( grey_scale_frequence )
 
-def find_trheshold_value(image, max_steps_threshold, delta_threshold):
-    relative_histogram = generate_relative_histogram(image)
+def find_threshold_value(image, start_image_position_x, start_image_position_y, end_image_position_x, end_image_position_y, max_steps_threshold=DEAFULT_MAX_STEPS_THRESHOLD, delta_threshold=DEFAULT_DELTA_THRESHOLD):
+    relative_histogram = generate_relative_histogram(image, start_image_position_x, start_image_position_y, end_image_position_x, end_image_position_y)
     threshold_value = DEFAULT_THRESHOLD_VALUE
     print(f'Find Threshold Values - Steps: {max_steps_threshold}, Delta: {delta_threshold} ')
     
@@ -671,11 +673,11 @@ def find_trheshold_value(image, max_steps_threshold, delta_threshold):
         left_half_median_brightness = 0
         right_half_median_brightness = 0
         
-        for relative_histogram_index in range(1, len(relative_histogram)):
-            if relative_histogram_index < threshold_value:
-                left_half_median_brightness += relative_histogram_index * relative_histogram[relative_histogram_index]
+        for index in range(1, len(relative_histogram)):
+            if index < threshold_value:
+                left_half_median_brightness += index * relative_histogram[index]
             else:
-                right_half_median_brightness += relative_histogram_index * relative_histogram[relative_histogram_index]
+                right_half_median_brightness += index * relative_histogram[index]
         
         new_threshold_value = ( left_half_median_brightness + right_half_median_brightness ) // 2
         print(f'Calculated Threshold Value: {new_threshold_value}')
@@ -687,14 +689,46 @@ def find_trheshold_value(image, max_steps_threshold, delta_threshold):
     return threshold_value
         
 
-def find_treshold_value_based_on_histogram_pound(image, max_steps_threshold, delta_threshold):
-    pass
-def threshold_image(image, threshold_value=DEFAULT_THRESHOLD_VALUE):
+def find_threshold_value_based_on_histogram_weight(image, start_image_position_x, start_image_position_y, end_image_position_x, end_image_position_y, max_steps_threshold=DEAFULT_MAX_STEPS_THRESHOLD, delta_threshold=DEFAULT_DELTA_THRESHOLD):
+    relative_histogram = generate_relative_histogram(image, start_image_position_x, start_image_position_y, end_image_position_x, end_image_position_y)
+    threshold_value = DEFAULT_THRESHOLD_VALUE
+    left_landmark = MIN_PIXEL_VALUE
+    right_landmark = MAX_PIXEL_VALUE
+    
+    print(f'Find Threshold Values Based on Histogram Weight - Steps: {max_steps_threshold}, Delta: {delta_threshold} \n')
+    
+    while max_steps_threshold > 0:
+        max_steps_threshold -= 1
+        left_histogram_weight = 0
+        right_histogram_weight = 0
+        
+        for index in range(1, len(relative_histogram)):
+            if index < threshold_value:
+                left_histogram_weight += relative_histogram[index]
+            else:
+                right_histogram_weight += relative_histogram[index]
+        
+        if left_histogram_weight > right_histogram_weight:
+            print(f'Left Histogram Weight: {left_histogram_weight} > Right Histogram Weight: {right_histogram_weight}\n')
+            print(f'Right Landmark: {right_landmark}, Left Landmark: {left_landmark}\n')
+            right_landmark = threshold_value
+            threshold_value = ( left_landmark + threshold_value ) // 2
+        else:
+            print(f'Left Histogram Weight: {left_histogram_weight} < Right Histogram Weight: {right_histogram_weight}\n')
+            print(f'Right Landmark: {right_landmark}, Left Landmark: {left_landmark}\n')
+            left_landmark = threshold_value
+            threshold_value = ( right_landmark + threshold_value ) // 2
+            
+        print(f'Calculated Threshold Value: {threshold_value}\n')
+        
+    return threshold_value
+
+def threshold_image(image, start_image_position_x, start_image_position_y, end_image_position_x, end_image_position_y, threshold_value):
     base_image = load_image_data(image)
     base_matrix_image = matrix_from_image( image.height, image.width )
     
-    for image_position_x in range(image.height):
-        for image_position_y in range(image.width):
+    for image_position_x in range( start_image_position_x, end_image_position_x ):
+        for image_position_y in range( start_image_position_y, end_image_position_y ):
             if base_image[image_position_y, image_position_x][R] < threshold_value:
                 base_matrix_image[image_position_x][image_position_y][R] = MIN_PIXEL_VALUE
                 base_matrix_image[image_position_x][image_position_y][G] = MIN_PIXEL_VALUE
@@ -706,10 +740,44 @@ def threshold_image(image, threshold_value=DEFAULT_THRESHOLD_VALUE):
                 
     return image_from_matrix(base_matrix_image)
 
-def global_threshold_image(image, max_steps_threshold=DEAFULT_MAX_STEPS_THRESHOLD, delta_threshold=DEFAULT_DELTA_THRESHOLD):
-    threshold_value = find_trheshold_value(image, max_steps_threshold, delta_threshold)
+def threshold_matrix_image(image, base_matrix_image, start_matrix_position_x, start_matrix_position_y, end_matrix_position_x, end_matrix_position_y, threshold_value):
+    base_image = load_image_data(image)
+    
+    for image_position_x in range( start_matrix_position_x, end_matrix_position_x ):
+        for image_position_y in range( start_matrix_position_y, end_matrix_position_y ):
+            if base_image[image_position_y, image_position_x][R] < threshold_value:
+                base_matrix_image[image_position_x][image_position_y][R] = MIN_PIXEL_VALUE
+                base_matrix_image[image_position_x][image_position_y][G] = MIN_PIXEL_VALUE
+                base_matrix_image[image_position_x][image_position_y][B] = MIN_PIXEL_VALUE
+            else:
+                base_matrix_image[image_position_x][image_position_y][R] = MAX_PIXEL_VALUE
+                base_matrix_image[image_position_x][image_position_y][G] = MAX_PIXEL_VALUE
+                base_matrix_image[image_position_x][image_position_y][B] = MAX_PIXEL_VALUE
+                
+    return base_matrix_image
+
+def global_threshold_image(image, threshod_value=None):
+    threshold_value = find_threshold_value_based_on_histogram_weight(image, START_IMAGE_HEIGHT, START_IMAGE_WIDTH, image.height, image.width) if threshod_value is None else threshod_value
     print(f'Final Threshold Value: {threshold_value}')
-    return threshold_image(image, threshold_value)
+    return threshold_image(image, START_IMAGE_HEIGHT, START_IMAGE_WIDTH, image.height, image.width, threshold_value)
+
+def local_threshold_image(image, horizontal_regions=DEFAULT_HORIZONTAL_REGIONS, vertical_regions=DEFAULT_VERTICAL_REGIONS):
+    region_width = image.width // horizontal_regions
+    region_height = image.height // vertical_regions
+    base_matrix_image = matrix_from_image( image.height, image.width )
+    
+    for horizontal_region in range(horizontal_regions):
+        for vertical_region in range(vertical_regions):
+            start_region_position_x = horizontal_region * region_height
+            start_region_position_y = vertical_region * region_width
+            end_region_position_x = start_region_position_x + region_height- 1
+            end_region_position_y = start_region_position_y + region_width - 1
+            
+            threshold_value = find_threshold_value_based_on_histogram_weight(image, start_region_position_x, start_region_position_y, end_region_position_x, end_region_position_y)
+            base_matrix_image = threshold_matrix_image(image, base_matrix_image, start_region_position_x, start_region_position_y, end_region_position_x, end_region_position_y, threshold_value)
+    
+    return image_from_matrix(base_matrix_image)
+    
 
 def cluster_by_k_means_method(image, number_of_clusters=DEFAULT_NUMBER_OF_CLUSTERS ):
     base_image = load_image_data(image)
@@ -742,12 +810,15 @@ def cluster_by_k_means_method(image, number_of_clusters=DEFAULT_NUMBER_OF_CLUSTE
 
 ## Should create a main package just for tests
 
-image = load_image_path('/home/zeller/Pictures/bird.jpg')
-imageTwo = load_image_url("https://www.sketchbook.com/blog/wp-content/uploads/2017/08/how-to-draw-flowers-tulip-53.png")
+image = load_image_path('/home/zeller/Pictures/t2.png')
+imageTwo = load_image_url("https://i.stack.imgur.com/ExIRK.jpg")
 #image.show()
 image = luminosity_monocromatization(image)
-generate_histogram(image).show("title")
-threshold_image(image).show("title")
-global_threshold_image(image).show()
+#generate_histogram(image, START_IMAGE_HEIGHT, START_IMAGE_WIDTH, image.height, image.width).show("title")
+# threshold_value = find_threshold_value(image, START_IMAGE_HEIGHT, START_IMAGE_WIDTH, image.height, image.width)
+# threshold_image(image, START_IMAGE_HEIGHT, START_IMAGE_WIDTH, image.height, image.width, value).show("title")
+#global_threshold_image(image).show()
+local_threshold_image(image).show()
+
 
 
