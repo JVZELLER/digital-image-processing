@@ -664,6 +664,7 @@ def get_max_grey_scale_frequency(grey_scale_frequence):
 def find_trheshold_value(image, max_steps_threshold, delta_threshold):
     relative_histogram = generate_relative_histogram(image)
     threshold_value = DEFAULT_THRESHOLD_VALUE
+    print(f'Find Threshold Values - Steps: {max_steps_threshold}, Delta: {delta_threshold} ')
     
     while max_steps_threshold > 0:
         max_steps_threshold -= 1
@@ -677,6 +678,7 @@ def find_trheshold_value(image, max_steps_threshold, delta_threshold):
                 right_half_median_brightness += relative_histogram_index * relative_histogram[relative_histogram_index]
         
         new_threshold_value = ( left_half_median_brightness + right_half_median_brightness ) // 2
+        print(f'Calculated Threshold Value: {new_threshold_value}')
         
         if abs(new_threshold_value - threshold_value) < delta_threshold:
             break
@@ -685,6 +687,8 @@ def find_trheshold_value(image, max_steps_threshold, delta_threshold):
     return threshold_value
         
 
+def find_treshold_value_based_on_histogram_pound(image, max_steps_threshold, delta_threshold):
+    pass
 def threshold_image(image, threshold_value=DEFAULT_THRESHOLD_VALUE):
     base_image = load_image_data(image)
     base_matrix_image = matrix_from_image( image.height, image.width )
@@ -704,7 +708,7 @@ def threshold_image(image, threshold_value=DEFAULT_THRESHOLD_VALUE):
 
 def global_threshold_image(image, max_steps_threshold=DEAFULT_MAX_STEPS_THRESHOLD, delta_threshold=DEFAULT_DELTA_THRESHOLD):
     threshold_value = find_trheshold_value(image, max_steps_threshold, delta_threshold)
-    print(f'Threshold Value: {threshold_value}')
+    print(f'Final Threshold Value: {threshold_value}')
     return threshold_image(image, threshold_value)
 
 def cluster_by_k_means_method(image, number_of_clusters=DEFAULT_NUMBER_OF_CLUSTERS ):
