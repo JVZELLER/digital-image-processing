@@ -810,15 +810,16 @@ def cluster_by_k_means_method(image, number_of_clusters=DEFAULT_NUMBER_OF_CLUSTE
 
 ## Should create a main package just for tests
 
-image = load_image_path('/home/zeller/Pictures/t2.png')
-imageTwo = load_image_url("https://i.stack.imgur.com/ExIRK.jpg")
+image = load_image_path('/home/zeller/Pictures/bird.jpg')
+#imageTwo = load_image_url("https://i.stack.imgur.com/ExIRK.jpg")
 #image.show()
 image = luminosity_monocromatization(image)
-#generate_histogram(image, START_IMAGE_HEIGHT, START_IMAGE_WIDTH, image.height, image.width).show("title")
-# threshold_value = find_threshold_value(image, START_IMAGE_HEIGHT, START_IMAGE_WIDTH, image.height, image.width)
-# threshold_image(image, START_IMAGE_HEIGHT, START_IMAGE_WIDTH, image.height, image.width, value).show("title")
+image.show()
+generate_histogram(image, START_IMAGE_HEIGHT, START_IMAGE_WIDTH, image.height, image.width).show("title")
+#threshold_value = find_threshold_value(image, START_IMAGE_HEIGHT, START_IMAGE_WIDTH, image.height, image.width)
+threshold_image(image, START_IMAGE_HEIGHT, START_IMAGE_WIDTH, image.height, image.width, 90).show("title")
 #global_threshold_image(image).show()
-local_threshold_image(image).show()
+#local_threshold_image(image).show()
 
 
 
