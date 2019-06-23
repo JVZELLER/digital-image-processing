@@ -852,7 +852,7 @@ def cluster_by_k_means_method(image, number_of_clusters=DEFAULT_NUMBER_OF_CLUSTE
 ## Should create a main package just for tests
 #image_path = input('Infome o caminho da imagem: ')
 # image_url = input('Informe a URL da image: ')
-image_path = r'C:\Users\Muralis\Pictures\license_plate.png'
+image_path = r'/home/zeller/Pictures/bird.jpg'
 image = load_image_path(image_path)
 image.show()
 
