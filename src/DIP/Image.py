@@ -23,6 +23,7 @@ from random import randint
 from _pickle import load
 from _ast import In
 from test._test_multiprocessing import sqr
+from numpy.lib.histograms import histogram
 
 #===============================================================================
 #                                    Constants
@@ -109,9 +110,9 @@ def numpy_array_from_matrix(matrix, matrix_Type = DEFAULT_MATRIX_TYPE ):
 def matrix_from_image( lines, columns, bands = BANDS, pixel_value = DEFAULT_PIXEL_VALUE ):
     """Cria matriz de pixels
     Args:
-        lines: nÃºmero de linhas da matriz (height)
-        columns: nÃºmero de colunas da matriz (width)
-        bands: nÃºmero de bandas (dimensoes) da imagem. Default = 3 (BANDS)
+        lines: nÃƒÂºmero de linhas da matriz (height)
+        columns: nÃƒÂºmero de colunas da matriz (width)
+        bands: nÃƒÂºmero de bandas (dimensoes) da imagem. Default = 3 (BANDS)
         pixel_value: valor atribuido a cada pixel da imagem. Default = 255 (DEFAULT_PIXEL_VALUE)
     Returns:
         Matriz com n=bands dimensoes de pixels
@@ -155,8 +156,8 @@ def find_min_image_width( images ):
 def new_kernel ( lines = 3, columns = 3 ):
     """Cria kernel a partir de lines e columns (linhas e colunas)
     Args:
-        lines: nÃºmero de linhas do kernel, default = 3
-        columns: nÃºmero de colunas do kernel, default = 3
+        lines: nÃƒÂºmero de linhas do kernel, default = 3
+        columns: nÃƒÂºmero de colunas do kernel, default = 3
     Returns:
         kernel (lines x columns)
     """
@@ -166,8 +167,8 @@ def new_kernel ( lines = 3, columns = 3 ):
 def new_laplacian_kernel ( lines = 3, columns = 3, pound = -8 ):
     """Cria kernel laplacianao 
     Args:
-        lines: nÃºmero de linhas do kernel, default = 3
-        columns: nÃºmero de colunas do kernel, default = 3
+        lines: nÃƒÂºmero de linhas do kernel, default = 3
+        columns: nÃƒÂºmero de colunas do kernel, default = 3
         pound: peso central do kernel. Default = -8
     Returns:
         kernel (lines x columns)
@@ -200,12 +201,12 @@ def find_kernel_height( kernel ):
 
 
 def start_kernel_width ( kernel ):
-    """Descobre largura mÃ¡xima para excursÃ£o do kernel
+    """Descobre largura mÃƒÂ¡xima para excursÃƒÂ£o do kernel
     Args:
         kernel: kernel que se deseja-se descobrir largura
-        mÃ¡xima para movimentaÃ§Ã£o (excursÃ£o)
+        mÃƒÂ¡xima para movimentaÃƒÂ§ÃƒÂ£o (excursÃƒÂ£o)
     Returns:
-        largura mÃ¡xima para excursÃ£o
+        largura mÃƒÂ¡xima para excursÃƒÂ£o
     """
     kernel_width = find_kernel_width( kernel )
     
@@ -213,12 +214,12 @@ def start_kernel_width ( kernel ):
 
 
 def start_kernel_height ( kernel ):
-    """Descobre altura mÃ¡xima para excursÃ£o do kernel
+    """Descobre altura mÃƒÂ¡xima para excursÃƒÂ£o do kernel
     Args:
         kernel: kernel que se deseja-se descobrir altura
-        mÃ¡xima para movimentaÃ§Ã£o (excursÃ£o)
+        mÃƒÂ¡xima para movimentaÃƒÂ§ÃƒÂ£o (excursÃƒÂ£o)
     Returns:
-        altura mÃ¡xima para excursÃ£o
+        altura mÃƒÂ¡xima para excursÃƒÂ£o
     """
     kernel_height = find_kernel_height( kernel )
     
@@ -367,7 +368,7 @@ def find_rgb_image_bounds( matrix_image_data, matrix_image_width, matrix_image_h
             
 
 def normalize_rgb_image ( matrix_image ):
-    """Normaliza imagem utilzando regra de trÃªs simples
+    """Normaliza imagem utilzando regra de trÃƒÂªs simples
     Args:
         matrix_image: matriz de imagem RGB
     Returns: matriz de imagem RGB com valores dos pixels normalizados
@@ -393,10 +394,10 @@ def normalize_rgb_image ( matrix_image ):
 
 
 def add_images( images, normalize_result = False, color_mode = MODE ):
-    """Soma N imagens tratando overflow com truncamento ou normalizaÃ§Ã£o
+    """Soma N imagens tratando overflow com truncamento ou normalizaÃƒÂ§ÃƒÂ£o
     Args: 
         images: lista de imagens
-        normalize_result: indica truncamento(False) ou normalizaÃ§Ã£o(True), default=False
+        normalize_result: indica truncamento(False) ou normalizaÃƒÂ§ÃƒÂ£o(True), default=False
         color_mode = 'color color_mode' da imagem resultante, defaul='RGB'
     Returns:
         Um objeto de imagem contendo a soma de todas as 
@@ -427,10 +428,10 @@ def subtract_images( images, normalize_result = False, color_mode = MODE ):
     """Subtrai N imagens tratando overflow com truncamento ou normalizacao
     Args: 
         images: lista de imagens
-        normalize_result: indica truncamento(False) ou normalizaÃ§Ã£o(True), default=False
+        normalize_result: indica truncamento(False) ou normalizaÃƒÂ§ÃƒÂ£o(True), default=False
         color_mode = 'color color_mode' da imagem resultante, defaul='RGB'
     Returns:
-        Um objeto de imagem contendo a subtraÃ§Ã£o de todas as 
+        Um objeto de imagem contendo a subtraÃƒÂ§ÃƒÂ£o de todas as 
         imagens.
     """
     new_image_width = find_min_image_width( images )
@@ -458,10 +459,10 @@ def multiply_images( images, normalize_result = False, color_mode = MODE ):
     """Multiplica N imagens
     Args: 
         images: lista de imagens
-        normalize_result: indica truncamento(False) ou normalizaÃ§Ã£o(True), default=False
+        normalize_result: indica truncamento(False) ou normalizaÃƒÂ§ÃƒÂ£o(True), default=False
         color_mode = 'color color_mode' da imagem resultante, defaul='RGB'
     Returns:
-        Um objeto de imagem contendo a multiplicaÃ§Ã£o de todas as 
+        Um objeto de imagem contendo a multiplicaÃƒÂ§ÃƒÂ£o de todas as 
         imagens.
     """
     new_image_width = find_min_image_width( images )
@@ -599,7 +600,7 @@ def sobel_filter( image, kernel = generate_sobel_kernel() ):
                         y_kernel_value += base_image[start_position_y + kernelY, start_position_x + kernelX][band] * kernel[X_KERNEL][kernelY][kernelX]
                         x_kernel_value += base_image[start_position_y + kernelY, start_position_x + kernelX][band] * kernel[Y_KERNEL][kernelY][kernelX]
                         
-                result_image[image_position_x][image_position_y][band] = abs(x_kernel_value) + abs(y_kernel_value)
+                result_image[image_position_x][image_position_y][band] = x_kernel_value
             
     return image_from_matrix( result_image )
 
@@ -674,9 +675,18 @@ def generate_histogram( image, start_image_position_x, start_image_position_y, e
             
     return image_from_matrix( result_histogram )
 
-
+def generate_sobel_histogram ( image ):
+    base_image = load_image_data(image)
+    histogram_values = [i * 0 for i in range(image.height)]
+         
+    for image_position_x in range( image.height ):
+        for image_position_y in range ( image.width):
+            if base_image[image_position_y, image_position_x][R] > 1:
+                histogram_values[image_position_x] += 1            
+              
+    return histogram_values
+    
 def generate_absolute_histogram(image, start_image_position_x, start_image_position_y, end_image_position_x, end_image_position_y):
-    # Should refactor histogram's methods name
     return generate_grey_scale_frequence(image, start_image_position_x, start_image_position_y, end_image_position_x, end_image_position_y)
 
 def generate_relative_histogram(image, start_image_position_x, start_image_position_y, end_image_position_x, end_image_position_y):
@@ -845,6 +855,97 @@ def cluster_by_k_means_method(image, number_of_clusters=DEFAULT_NUMBER_OF_CLUSTE
         
     return image_from_k_means_matrix(k_means_matrix, clusters)
 
+def find_license_plate_areas (histogram_values):
+    max_value = max(histogram_values)
+    candidate_value = max_value * 0.3
+    second_candidate_value = candidate_value * 0.6
+    license_plate_areas = [False for i in histogram_values]
+    
+    for index in range(len(histogram_values)):
+        if histogram_values[index] > candidate_value:
+            for second_index in range(index, len(histogram_values)):
+                if histogram_values[second_index] > second_candidate_value and count_areas(histogram_values, second_index, second_candidate_value):    
+                    license_plate_areas[second_index] = True
+    
+    return license_plate_areas
+
+def show_license_plate_areas (image, license_plate_areas):
+    base_image = load_image_data(image)
+    base_matrix_image = matrix_from_image( image.height, image.width )
+    
+    for image_position_x in range(image.height):
+        for image_position_y in range(image.width):
+            if license_plate_areas[image_position_x]:
+                base_matrix_image[image_position_x][image_position_y][R] = base_image[image_position_y, image_position_x][R]
+                base_matrix_image[image_position_x][image_position_y][G] = base_image[image_position_y, image_position_x][G]
+                base_matrix_image[image_position_x][image_position_y][B] = base_image[image_position_y, image_position_x][B]
+            else:
+                base_matrix_image[image_position_x][image_position_y][R] = MAX_PIXEL_VALUE
+                base_matrix_image[image_position_x][image_position_y][G] = MIN_PIXEL_VALUE
+                base_matrix_image[image_position_x][image_position_y][B] = MIN_PIXEL_VALUE
+    
+    return image_from_matrix(base_matrix_image)
+
+def find_license_plate (license_plate_areas, license_plate_values):
+    pixels = [0,0,0,1000] # start_X, start_Y, max_value, min_value
+    final = [0, 0, 50]
+    flag = True
+    while flag:
+        flag = False
+        for index in range(len(license_plate_areas)):
+            if license_plate_areas[index]:
+                area = []
+                pixels[0] = index # start position
+                for second in range(index, len(license_plate_areas)):
+                    if license_plate_areas[second] == False:
+                        pixels[1] = second - 1 # end position
+                        break
+                    area.append(license_plate_values[second])
+                        
+                max_value_in_area = max(area)
+                min_value_in_area = min(area)
+                
+                if max_value_in_area > pixels[2]:
+                    pixels[2] = max_value_in_area
+                if min_value_in_area < pixels[3]:
+                    pixels[3] = min_value_in_area
+                    
+                if (pixels[2] - pixels[3]) < final[2]:
+                    final = [pixels[0], pixels[1], pixels[2] - pixels[3]]
+                    flag = True
+    return final
+
+
+def count_areas (histogram, start, value):
+    count = 0
+    for index in range(start, len(histogram)):
+        if histogram[index] > value:
+            count += 1
+            
+    return count >= 10
+
+def find_license_plates (image, sobel_histogram):
+    base_image = load_image_data(image)
+    base_matrix_image = matrix_from_image( image.height, image.width )
+    
+    for image_position_x in range(sobel_histogram[0], sobel_histogram[1]):
+        for image_position_y in range(image.width):
+            base_matrix_image[image_position_x][image_position_y][R] = base_image[image_position_y, image_position_x][R]
+            base_matrix_image[image_position_x][image_position_y][G] = base_image[image_position_y, image_position_x][G]
+            base_matrix_image[image_position_x][image_position_y][B] = base_image[image_position_y, image_position_x][B]
+    
+    return image_from_matrix(base_matrix_image)
+
+def create_sobel_histogram(sobel_histogram_values):
+    base_matrix_image = matrix_from_image( len(sobel_histogram_values), 150, pixel_value = 200 )
+    
+    for image_position_x in range(get_image_height(base_matrix_image)):
+        for image_position_y in range(sobel_histogram_values[image_position_x]):            
+            base_matrix_image[image_position_x][image_position_y][R] = MIN_PIXEL_VALUE
+            base_matrix_image[image_position_x][image_position_y][G] = MIN_PIXEL_VALUE
+            base_matrix_image[image_position_x][image_position_y][B] = MIN_PIXEL_VALUE
+    
+    return image_from_matrix(base_matrix_image)
 #===============================================================================
 #                                 Tests
 #===============================================================================
@@ -852,22 +953,24 @@ def cluster_by_k_means_method(image, number_of_clusters=DEFAULT_NUMBER_OF_CLUSTE
 ## Should create a main package just for tests
 #image_path = input('Infome o caminho da imagem: ')
 # image_url = input('Informe a URL da image: ')
-image_path = r'/home/zeller/Pictures/bird.jpg'
+image_path = r'C:/Users/Muralis/Pictures/savero.png'
 image = load_image_path(image_path)
-image.show()
 
 #image = load_image_url(image_path)
-image = add_images([image, new_image((500, 500))], True)
 image = luminosity_monocromatization(image)
 image = threshold_image(image, START_IMAGE_HEIGHT, START_IMAGE_WIDTH, image.height, image.width, 90)
 image = sobel_filter(image)
 image.show()
+sobel_histogram_values = generate_sobel_histogram(image)
+license_plate_areas = find_license_plate_areas(sobel_histogram_values)
+show_license_plate_areas(image, license_plate_areas).show()
+create_sobel_histogram(sobel_histogram_values).show()
+license_plate_location = find_license_plate(license_plate_areas, sobel_histogram_values)
+
+image = find_license_plates(image, license_plate_location)
+image.show()
 #image.show()
-#generate_histogram(image, START_IMAGE_HEIGHT, START_IMAGE_WIDTH, image.height, image.width).show("title")
 #threshold_value = find_threshold_value(image, START_IMAGE_HEIGHT, START_IMAGE_WIDTH, image.height, image.width)
 # threshold_image(image, START_IMAGE_HEIGHT, START_IMAGE_WIDTH, image.height, image.width, 90).show('Sobel')
 #global_threshold_image(image).show()
 #local_threshold_image(image).show()
-
-
-
