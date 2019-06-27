@@ -20,10 +20,6 @@ from io import BytesIO
 import numpy as np
 ## To generate random int values
 from random import randint
-from _pickle import load
-from _ast import In
-from test._test_multiprocessing import sqr
-from numpy.lib.histograms import histogram
 
 #===============================================================================
 #                                    Constants
@@ -444,7 +440,7 @@ def subtract_images( images, normalize_result = False, color_mode = MODE ):
         image2 = load_image_data( images[image + 1] )
         for position_x in range( new_image_height ):
             for position_y in range( new_image_width ):
-                baseImage[position_x][position_y] = ( 
+                baseImage[position_x][position_y] = (
                                    image1[position_y, position_x][R] - image2[position_y, position_x][R],
                                    image1[position_y, position_x][G] - image2[position_y, position_x][G],
                                    image1[position_y, position_x][B] - image2[position_y, position_x][B]
@@ -511,6 +507,7 @@ def half_median_filter ( image, kernel = new_kernel( 3, 3 ) ):
                         
                 result_image[image_position_x][image_position_y][band] /= kernelSize
             
+    result_image = normalize_rgb_image( result_image )
     return image_from_matrix( result_image )
 
 
@@ -858,7 +855,7 @@ def cluster_by_k_means_method(image, number_of_clusters=DEFAULT_NUMBER_OF_CLUSTE
 def find_license_plate_areas (histogram_values):
     max_value = max(histogram_values)
     candidate_value = max_value * 0.3
-    second_candidate_value = candidate_value * 0.6
+    second_candidate_value = candidate_value * 0.7
     license_plate_areas = [False for i in histogram_values]
     
     for index in range(len(histogram_values)):
@@ -888,7 +885,7 @@ def show_license_plate_areas (image, license_plate_areas):
 
 def find_license_plate (license_plate_areas, license_plate_values):
     pixels = [0,0,0,1000] # start_X, start_Y, max_value, min_value
-    final = [0, 0, 50]
+    final = [0, 0, 0]
     flag = True
     while flag:
         flag = False
@@ -904,14 +901,15 @@ def find_license_plate (license_plate_areas, license_plate_values):
                         
                 max_value_in_area = max(area)
                 min_value_in_area = min(area)
+                diference = max_value_in_area - min_value_in_area
                 
-                if max_value_in_area > pixels[2]:
-                    pixels[2] = max_value_in_area
-                if min_value_in_area < pixels[3]:
-                    pixels[3] = min_value_in_area
+#                 if max_value_in_area > pixels[2]:
+#                     pixels[2] = max_value_in_area
+#                 if min_value_in_area < pixels[3]:
+#                     pixels[3] = min_value_in_area
                     
-                if (pixels[2] - pixels[3]) < final[2]:
-                    final = [pixels[0], pixels[1], pixels[2] - pixels[3]]
+                if diference > final[2]:
+                    final = [pixels[0], pixels[1], diference]
                     flag = True
     return final
 
@@ -922,13 +920,13 @@ def count_areas (histogram, start, value):
         if histogram[index] > value:
             count += 1
             
-    return count >= 10
+    return count >= 20
 
-def find_license_plates (image, sobel_histogram):
+def find_license_plates (image, start_position, end_position):
     base_image = load_image_data(image)
     base_matrix_image = matrix_from_image( image.height, image.width )
     
-    for image_position_x in range(sobel_histogram[0], sobel_histogram[1]):
+    for image_position_x in range(start_position, end_position):
         for image_position_y in range(image.width):
             base_matrix_image[image_position_x][image_position_y][R] = base_image[image_position_y, image_position_x][R]
             base_matrix_image[image_position_x][image_position_y][G] = base_image[image_position_y, image_position_x][G]
@@ -946,31 +944,9 @@ def create_sobel_histogram(sobel_histogram_values):
             base_matrix_image[image_position_x][image_position_y][B] = MIN_PIXEL_VALUE
     
     return image_from_matrix(base_matrix_image)
-#===============================================================================
-#                                 Tests
-#===============================================================================
 
-## Should create a main package just for tests
-#image_path = input('Infome o caminho da imagem: ')
-# image_url = input('Informe a URL da image: ')
-image_path = r'C:/Users/Muralis/Pictures/savero.png'
-image = load_image_path(image_path)
 
-#image = load_image_url(image_path)
-image = luminosity_monocromatization(image)
-image = threshold_image(image, START_IMAGE_HEIGHT, START_IMAGE_WIDTH, image.height, image.width, 90)
-image = sobel_filter(image)
-image.show()
-sobel_histogram_values = generate_sobel_histogram(image)
-license_plate_areas = find_license_plate_areas(sobel_histogram_values)
-show_license_plate_areas(image, license_plate_areas).show()
-create_sobel_histogram(sobel_histogram_values).show()
-license_plate_location = find_license_plate(license_plate_areas, sobel_histogram_values)
+# image2 = load_image_path('/home/zeller/Pictures/Imagens-Teste/imagem-diferenca2.jpg')
 
-image = find_license_plates(image, license_plate_location)
-image.show()
-#image.show()
-#threshold_value = find_threshold_value(image, START_IMAGE_HEIGHT, START_IMAGE_WIDTH, image.height, image.width)
-# threshold_image(image, START_IMAGE_HEIGHT, START_IMAGE_WIDTH, image.height, image.width, 90).show('Sobel')
-#global_threshold_image(image).show()
-#local_threshold_image(image).show()
+
+
